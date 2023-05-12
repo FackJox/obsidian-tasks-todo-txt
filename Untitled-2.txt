@@ -1,0 +1,77 @@
+/**
+ * TodoPlugin for Obsidian
+ * 
+ * This plugin keeps track of all the todo items in Markdown files in the vault
+ * and updates a `todo.txt` file accordingly. It listens for create, modify, and
+ * delete events on files in the vault, and updates the todo items list based on
+ * the presence of the #todo tag in the files.
+ * 
+ * The plugin uses the following notations:
+ * - 📅 for due dates
+ * - 🔁 for recurrence
+ * - 🛈, 🛆, and 🛇 for priorities (A, B, and C respectively)
+ * 
+ * @author Your Name
+ * @version 1.0
+ */
+
+import { Plugin } from 'obsidian';
+
+export default class TodoPlugin extends Plugin {
+  async onload() {
+    // Log the loading of the plugin and update the todo.txt file
+    console.log('Loading Todo Plugin');
+    await this.updateTodoFile();
+
+    // Register event listeners for file modifications, deletions, and creations
+    this.registerEvent(
+      this.app.vault.on('modify', async (file) => {
+        // [stackoverflow.blog](https://stackoverflow.blog/2021/12/23/best-practices-for-writing-code-comments/)
+        // Don't trigger if todo.txt is modified, check if modified file has #todo tag, and update the todo.txt file accordingly
+        if (file.path === 'todo.txt') return;
+        if ((await this.app.vault.read(file)).includes('#todo')) await this.updateTodoFile();
+      })
+    );
+
+    this.registerEvent(
+      this.app.vault.on('delete', async (file) => {
+        // Check if deleted file has #todo tag and update the todo.txt file accordingly
+        if (file.path.includes('#todo')) await this.updateTodoFile();
+      })
+    );
+
+    this.registerEvent(
+      this.app.vault.on('create', async (file) => {
+        // Check if created file has #todo tag and update the todo.txt file accordingly
+        if ((await this.app.vault.read(file)).includes('#todo')) await this.updateTodoFile();
+      })
+    );
+  }
+
+  async updateTodoFile() {
+    // Get all the Markdown notes in the vault, filter out notes without the #todo tag and get the todo items from each note
+    const markdownFiles = this.getMarkdownFiles();
+    const todoNotes = markdownFiles.filter(async (note) => (await this.app.vault.read(note)).includes('#todo'));
+    const filteredTodoNotes = todoNotes.filter((note) => note !== undefined);
+    const todoItems = filteredTodoNotes.map(async (note) => {
+      // Extract and format the todo items for todo.txt
+      const items = (await this.app.vault.read(note))
+        ?.split('\n')
+        // ... (rest of the formatting code)
+        }) || [];
+
+      return items;
+    });
+
+    // Wait for all promises to resolve, update the todo.txt file with the latest todo items, and log the update
+    const allItems = await Promise.all(todoItems);
+    await this.app.vault.adapter.write('todo.txt', allItems.flat().join('\n') + '\n');
+    console.log('Updated todo.txt file');
+  }
+
+  getMarkdownFiles() {
+    // Get all Markdown files from the vault
+    const { vault } = this.app;
+    return vault.getMarkdownFiles();
+  }
+}
